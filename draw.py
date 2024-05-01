@@ -1,23 +1,23 @@
 import tkinter as tk
-from PIL import Image, ImageDraw
+from PIL import Image, ImageOps
 import os
 from train import ConvNet
 import torch
 import numpy as np
+import io
 
 class DrawingBoard:
   def __init__(self, master):
     self.model = ConvNet()
     self.model.load_model()
 
-    master.protocol("WM_DELETE_WINDOW", self.on_close)
     self.i = 0
     # Create a frame for the canvas and buttons
     self.frame = tk.Frame(master)
     self.frame.pack()
 
     # Create the canvas
-    self.canvas = tk.Canvas(self.frame, width=250, height=250, bg='white')
+    self.canvas = tk.Canvas(self.frame, width=200, height=200, bg='white')
     self.canvas.grid(row=0, column=0, pady=10, padx=10)
 
     # Bind the draw function to mouse motion
@@ -30,22 +30,35 @@ class DrawingBoard:
     self.button2 = tk.Button(self.frame, text="Clear Canvas", command=self.button2_func)
     self.button2.grid(row=0, column=2, padx=10, pady=10, ipady=5)
 
+    self.guess_label = tk.Label(self.frame, text="Guess: ")
+    self.guess_label.grid(row=1, column=1)  # Adjust the row and column as needed
+
   def draw(self, event):
-    r=2
-    self.canvas.create_oval(event.x-r, event.y-r, event.x+r, event.y+r, fill='black')
+    r=5
+    self.canvas.create_oval(event.x-r, event.y-r, event.x+r, event.y+r, fill='black', outline='black')
 
+  def save_image(self):
+    ps = self.canvas.postscript(colormode='color')
+    im = Image.open(io.BytesIO(ps.encode('utf-8')))
+    im = im.resize((28, 28))
+
+    im = ImageOps.invert(im)
+
+    im.save(f'drawing.jpg')
+    self.i+=1
+
+  def load_image(self):
+    image = Image.open('drawing.jpg')
+    image = image.convert('L')
+    image = image.rotate(-90)
+    image_array = np.array(image)
+    image_data = image_array.reshape(1, 1, 28, 28)
+    image_tensor = torch.from_numpy(image_data).float()
+    return image_tensor
+  
   def button1_func(self):
-    self.canvas.postscript(file="drawing.eps", colormode='color')
-    img = Image.open("drawing.eps")
-
-    # resize image to be processed by neural network
-    img = img.resize((28, 28))
-
-    img.save(f"drawing_{self.i}.png", "png")
+    self.save_image()
     self.make_guess()
-    self.i += 1
-
-    #TODO: add code to predict the letter
 
   def button2_func(self):
     self.canvas.delete("all")
@@ -57,13 +70,7 @@ class DrawingBoard:
       root.destroy()
 
   def make_guess(self):
-    # Load the image
-    img = Image.open(f"drawing_{self.i}.png")
-    img = img.convert("L")
-
-    # Convert the image to a tensor
-    img = torch.tensor(np.array(img), dtype=torch.float32)
-    img = img.view(1, 1, 28, 28)
+    img = self.load_image()
 
     # Make the prediction
     output = self.model.forward(img)

@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import pandas as pd
 import numpy as np
+from PIL import Image
 
 #!pip install torch
 #!pip install pandas
@@ -13,7 +14,18 @@ import numpy as np
 # Convolutional neural network 
 class ConvNet(nn.Module):
     def __init__(self):
-        self.mapping = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+        label_map = pd.read_csv("./training/emnist-balance-mapping.txt", 
+                        delimiter = ' ', 
+                        index_col=0, 
+                        header=None, 
+                        squeeze=True
+                       )
+        label_dictionary = {}
+        for index, label in enumerate(label_map):
+            label_dictionary[index] = chr(label)
+        self.mapping = label_dictionary
+
+
         super(ConvNet, self).__init__()
         self.layer1 = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=5, stride=1, padding=2),
@@ -49,7 +61,7 @@ class ConvNet(nn.Module):
 
         # Define the loss function and the optimizer
         criterion = torch.nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(self.parameters(), lr=0.0003)
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
         avg = 0
         # Training loop
         for epoch in range(self.train_images.shape[0]):
@@ -96,11 +108,8 @@ class ConvNet(nn.Module):
     def get_train_data(self):
         train_data = pd.read_csv("./training/emnist-balanced-train.csv")
         x1 = np.array(train_data.iloc[:, 1:])
-        # normalize
-        train_x = x1 / 255
-        train_x_number = train_x.shape[0]
-    
-        self.train_images = x1.reshape(train_x_number, 28, 28, 1)
+
+        self.train_images = x1.reshape(112799, 28, 28, 1)
     
         # Set the labels
         self.train_labels = train_data.iloc[:, 0].values
@@ -117,8 +126,20 @@ class ConvNet(nn.Module):
         # Set the labels
         self.test_labels = test_data.iloc[:, 0].values
 
-    def image_to_tensor(self, image):
-        return torch.tensor(image, dtype=torch.float32).view(1, 28, 28, 1)
+    def save_image_as_png(self, image, label):
+        image = image.cpu().numpy()
+        image_2d = image.reshape(28, 28)
+        image_2d = (image_2d * 255).astype(np.uint8)
+        image = Image.fromarray(image_2d)
+        image.save('example.png')
+        print(label)
+
+    def convert_image(self, image):
+        image_array = np.array(image)
+        image_array = 255 - image_array
+        image_data = image_array.reshape(1, 1, 28, 28) / 255
+
+        return torch.from_numpy(image_data).float()
     
     def test(self):
         self.get_test_data()
@@ -130,6 +151,7 @@ class ConvNet(nn.Module):
                 i = np.random.randint(0, len(self.test_images))
                 label = torch.tensor([self.test_labels[i]], dtype=torch.long)
                 image = torch.tensor(self.test_images[i], dtype=torch.float32)
+                #self.save_image_as_png(image, label)
                 image = image.view(1, 1, 28, 28)
                 outputs = self.forward(image)
                 _, predicted = torch.max(outputs.data, 1)
