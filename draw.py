@@ -74,7 +74,7 @@ class DrawingBoard:
 
     # Make the prediction
     output = self.model.forward(img)
-    print(f"Prediction: {self.model.mapping[torch.argmax(output).item()]}")
+    self.guess_label.config(text=f"Guess: {self.model.mapping[output.argmax().item()]}")
 
 root = tk.Tk()
 db = DrawingBoard(root)

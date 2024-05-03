@@ -25,7 +25,6 @@ class ConvNet(nn.Module):
             label_dictionary[index] = chr(label)
         self.mapping = label_dictionary
 
-
         super(ConvNet, self).__init__()
         self.layer1 = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=5, stride=1, padding=2),
@@ -35,26 +34,21 @@ class ConvNet(nn.Module):
             nn.Conv2d(32, 64, kernel_size=5, stride=1, padding=2),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
-        self.layer3 = nn.Sequential(
-            nn.Conv2d(64, 128, kernel_size=5, stride=1, padding=2),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2))
         self.drop_out = nn.Dropout()
-        self.fc1 = nn.Linear(3 * 3 * 128, 1000)
+        self.fc1 = nn.Linear(7 * 7 * 64, 1000)  # Adjusted to match the output of layer2
         self.fc2 = nn.Linear(1000, 500)
         self.fc3 = nn.Linear(500, 47)
 
     def forward(self, x):
         out = self.layer1(x)
         out = self.layer2(out)
-        out = self.layer3(out)
         out = out.reshape(out.size(0), -1)
         out = self.drop_out(out)
         out = self.fc1(out)
         out = self.fc2(out)
         out = self.fc3(out)
         return out
-
+    
     def train_model(self):
         # Load the training data
         self.get_train_data()
@@ -85,7 +79,6 @@ class ConvNet(nn.Module):
 
             # Calculate and display the loss
             loss = criterion(output, label)
-
 
             # Backward pass and optimize
             loss.backward()
@@ -163,5 +156,5 @@ class ConvNet(nn.Module):
 
 if __name__ == "__main__":
     nn = ConvNet()
-    #nn.train_model()
+    # nn.train_model()
     nn.test()
